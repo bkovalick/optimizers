@@ -1,0 +1,11 @@
+arch
+cvxpy
+gurobipy
+matplotlib
+numpy
+pandas
+pyodbc
+pyperclip
+scipy
+SQLAlchemy
+yfinance

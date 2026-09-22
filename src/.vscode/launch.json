@@ -1,0 +1,71 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Portfolio Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/optimizers/portfolio_optimizer.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Tax Lot Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/optimizers/tax_lot_optimizer.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Mean Variance Optimization",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/optimizers/mean_variance_optimization.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Multi Period Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/optimizers/multi_period_optimizer.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Market Signals",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/optimizers/market_signals.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}
