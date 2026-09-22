@@ -161,7 +161,7 @@ class RebalanceProblemBuilder:
         tax_lots_df = tax_lots_df.reset_index()
         return tax_lots_df
 
-class Optimizer:
+class TaxLotOptimizer:
 
     def optimize(self, 
                  rebalance_problem: RebalanceProblem):
@@ -394,7 +394,7 @@ class OptimizationOrchestrator:
     
     def __init__(self, rebalance_problem: RebalanceProblem):
         self.rebalance_problem = rebalance_problem
-        self.optimizer = Optimizer()
+        self.optimizer = TaxLotOptimizer()
 
     def run_optimization(self):
         results = self.optimizer.optimize(self.rebalance_problem)
@@ -415,7 +415,7 @@ if __name__ == '__main__':
         "short_term_gains_budget": {"apply_budget": False, "amount": 100000 },
     }
 
-    optimizer = Optimizer()
+    optimizer = TaxLotOptimizer()
     rebalance_problem = RebalanceProblemBuilder(rebal_config).build()
     tax_pref_results = []
     tax_preferences = np.arange(0.0, 1.01, 0.10)
