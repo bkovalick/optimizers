@@ -256,6 +256,10 @@ class MultiPeriodOptimizer:
 
         self.model.setObjective(objective, GRB.MAXIMIZE)
 
+    @staticmethod
+    def _solution_value(value) -> float:
+        return float(np.asarray(value).item())
+
     def _extract_solution(self): 
         """Extract multi-period solutions over the time timeline."""
 
@@ -263,19 +267,22 @@ class MultiPeriodOptimizer:
         for t in range(1, self.time_horizon + 1):
             t_forecast = t - 1
 
-            period_weights = np.array([self.optimal_weights[t, n].X for n in range(self.n_constituents)])
+            period_weights = np.array([
+                self._solution_value(self.optimal_weights[t, n].X)
+                for n in range(self.n_constituents)
+            ])
             period_mu = np.array(self.mu_levels[t_forecast])
-            period_return_t = period_weights @ period_mu
+            period_return_t = self._solution_value(period_weights @ period_mu)
 
             n_positions = len([w for w in period_weights if w > 1e-5])
             for n in range(self.n_constituents):
                 records.append({
                     "Period": t,
                     "Security": self.securities[n],
-                    "Weight": self.optimal_weights[t, n].X,
-                    "Buy_Trade": self.buy_trades[t, n].X,
-                    "Sell_Trade": self.sell_trades[t, n].X,
-                    "Net_Trade": self.trades[t, n].X,
+                    "Weight": period_weights[n],
+                    "Buy_Trade": self._solution_value(self.buy_trades[t, n].X),
+                    "Sell_Trade": self._solution_value(self.sell_trades[t, n].X),
+                    "Net_Trade": self._solution_value(self.trades[t, n].X),
                     "Risk_Aversion": self.risk_aversion,
                     "Period_Return": period_return_t,
                     "Active_Positions": n_positions
