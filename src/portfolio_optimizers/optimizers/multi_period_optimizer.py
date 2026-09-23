@@ -43,9 +43,11 @@ class MultiPeriodOptimizer:
 
         # Objective parameters and costs
         self.risk_aversion = portfolio_configuration.risk_aversion
-        self.phi_buy_cost = portfolio_configuration.buy_cost
-        self.phi_sell_cost = portfolio_configuration.sell_cost
+        self.phi_buy_costs = portfolio_configuration.buy_costs
+        self.phi_sell_costs = portfolio_configuration.sell_costs
         self.psi_hold_cost = portfolio_configuration.hold_cost
+        self.period_turnover_limit = portfolio_configuration.period_turnover_limit
+        self.global_horizon_turnover_limit = portfolio_configuration.global_horizon_turnover_limit
 
     def build_model(self):
         """Build the optimization model"""
@@ -130,7 +132,7 @@ class MultiPeriodOptimizer:
             self.model.addConstr(
                 gp.quicksum(self.optimal_weights[t, n].item() for n in range(self.n_constituents)) == 1.0,
                 name=f"net_exposure"
-            )
+            )           
         
         for t in range(self.time_horizon):
             t_next = t + 1
@@ -161,6 +163,24 @@ class MultiPeriodOptimizer:
                     name=f"trade_def_t_{t}_asset{n}"
                 )
 
+        for t in range(1, self.time_horizon + 1):
+            self.model.addConstr(
+                0.5 * gp.quicksum(
+                    self.buy_trades[t, n] + self.sell_trades[t, n]
+                    for n in range(self.n_constituents)
+                ) <= self.period_turnover_limit,
+                name=f"period_turnover_cap_t_{t}"
+            )
+
+        self.model.addConstr(
+            0.5 * gp.quicksum(
+                self.buy_trades[t, n] + self.sell_trades[t, n]
+                for t in range(1, self.time_horizon + 1)
+                for n in range(self.n_constituents)
+            ) <= self.global_horizon_turnover_limit,
+            name="global_horizon_turnover_cap"
+        )
+
         # terminal_weights = [1.0 / self.n_constituents] * self.n_constituents # x_H target allocation
         # for n in range(self.n_constituents):
         #     self.model.addConstr(self.optimal_weights[self.time_horizon, n].item() == terminal_weights[n], name=f"terminal_state_{n}")
@@ -183,8 +203,8 @@ class MultiPeriodOptimizer:
             risk_term = w_t @ np.array(self.sigma_levels[t]) @ w_t
 
             # transaction cost
-            tc_term = gp.quicksum((self.phi_buy_cost * self.buy_trades[t_next, n]) + \
-                                  (self.phi_sell_cost * self.sell_trades[t_next, n]) for n in range(self.n_constituents))
+            tc_term = gp.quicksum((self.phi_buy_costs[t] * self.buy_trades[t_next, n]) + \
+                                  (self.phi_sell_costs[t] * self.sell_trades[t_next, n]) for n in range(self.n_constituents))
 
             # holding cost
             holding_term = gp.quicksum(self.psi_hold_cost * self.optimal_weights[t_next, n] for n in range(self.n_constituents))
@@ -209,6 +229,11 @@ class MultiPeriodOptimizer:
                 self._solution_value(self.optimal_weights[t, n].X)
                 for n in range(self.n_constituents)
             ])
+            period_net_trades = np.array([
+                self._solution_value(self.trades[t, n].X)
+                for n in range(self.n_constituents)
+            ])
+            period_turnover_pct = 0.5 * np.abs(period_net_trades).sum() * 100
             period_mu = np.array(self.mu_levels[t_forecast])
             period_return_t = self._solution_value(period_weights @ period_mu)
 
@@ -220,10 +245,11 @@ class MultiPeriodOptimizer:
                     "Weight": period_weights[n],
                     "Buy_Trade": self._solution_value(self.buy_trades[t, n].X),
                     "Sell_Trade": self._solution_value(self.sell_trades[t, n].X),
-                    "Net_Trade": self._solution_value(self.trades[t, n].X),
+                    "Net_Trade": period_net_trades[n],
                     "Risk_Aversion": self.risk_aversion,
                     "Period_Return": period_return_t,
-                    "Active_Positions": n_positions
+                    "Active_Positions": n_positions,
+                    "Turnover_Pct": period_turnover_pct
                 })
 
         self.solution_df = pd.DataFrame(records)

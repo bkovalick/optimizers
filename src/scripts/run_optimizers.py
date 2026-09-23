@@ -2,51 +2,33 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from portfolio_optimizers.signals.market_signals import GARCHSignals, SyntheticSignals
 from portfolio_optimizers.analysis.efficient_frontier import EfficientFrontierRunner
 from portfolio_optimizers.reporting.plot_display import EfficientFrontierPlotter
 from portfolio_optimizers.reporting.report_writer import OptimizerReportWriter
 
 SRC_DIR = Path(__file__).resolve().parents[1]
 
-def build_rebalance_problem(market_data: pd.DataFrame, time_horizon: int = 2) -> dict:
-    rebalance_problem = {
-        "current_weights": None,
-        "risk_aversion": 0,
-        "market_data": market_data,
-        "apply_shrinkage": True,
-        "time_horizon": time_horizon,
-        "buy_cost": 0.002,
-        "sell_cost": 0.001,
-        "hold_cost": 0.0005,
-    }
-    # synthetic_signals = SyntheticSignals(rebalance_problem["market_data"])
-    # mu_levels, sigma_levels = synthetic_signals.forecast(horizon=rebalance_problem["time_horizon"])
-    garch_signals = GARCHSignals(rebalance_problem["market_data"])
-    mu_levels, sigma_levels = garch_signals.forecast(horizon=rebalance_problem["time_horizon"])
-
-    return {
-        **rebalance_problem,
-        "mu_levels": mu_levels,
-        "sigma_levels": sigma_levels,
-    }
-
 def run_multi_period_optimization():
+    """ Run the multi-period optimization using the Efficient Frontier approach. """
     market_data_df = pd.read_pickle(SRC_DIR / "data" / "subset_weekly_closings_10yrs.pkl")
-    rebalance_problem = build_rebalance_problem(market_data_df, time_horizon=1)
-
-    risk_aversion_levels = np.linspace(0.25, 10, 25)
+    risk_aversion_levels = np.linspace(0.25, 4, 5)
+    time_horizons = [1, 2, 5, 10] 
+    param_sweeps = {"risk_aversion": risk_aversion_levels, "time_horizon": time_horizons}
+    
     frontier = EfficientFrontierRunner()
-    frontier_results = frontier.calculate_efficient_frontier(risk_aversion_levels, rebalance_problem)
+    frontier_results = frontier.calculate_efficient_frontier(
+        param_sweeps=param_sweeps, 
+        market_data=market_data_df, 
+        signal_type="garch"
+    )
 
-    time_horizon = rebalance_problem["time_horizon"]
     writer = OptimizerReportWriter(SRC_DIR / "optimizer_results", 
-                                   f"efficient_frontier_results_{pd.Timestamp.now().strftime('%Y%m%d')}_time_H_{time_horizon}.xlsx")
+                                   f"efficient_frontier_results_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx")
     writer.write_report(frontier_results)
 
-    plotter = EfficientFrontierPlotter()
-    plotter.plot_efficient_frontier(frontier_results, risk_aversion_levels)
-    plotter.plot_portfolio_composition(frontier_results)
+    # plotter = EfficientFrontierPlotter()
+    # plotter.plot_efficient_frontier(frontier_results, risk_aversion_levels)
+    # plotter.plot_portfolio_composition(frontier_results)
 
 def run_tax_lot_optimization():
     from portfolio_optimizers.optimizers.tax_lot_optimizer import TaxLotOptimizer, RebalanceProblemBuilder

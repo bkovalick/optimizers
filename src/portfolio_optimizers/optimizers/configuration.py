@@ -80,13 +80,21 @@ class PortfolioConfiguration:
         return self._config.get("time_horizon", 3)
 
     @property
-    def buy_cost(self) -> float:
-        return self._config.get("buy_cost", 0.002)
+    def buy_costs(self) -> float:
+        return self._config.get("buy_costs", np.array([0.002] * self.n_constituents, dtype=float))
 
     @property
-    def sell_cost(self) -> float:
-        return self._config.get("sell_cost", 0.001)
+    def sell_costs(self) -> float:
+        return self._config.get("sell_costs", np.array([0.001] * self.n_constituents, dtype=float))
 
     @property
     def hold_cost(self) -> float:
         return self._config.get("hold_cost", 0.0005)
+
+    @property
+    def period_turnover_limit(self) -> float:
+        return self._config.get("period_turnover_limit", 0.10)
+    
+    @property
+    def global_horizon_turnover_limit(self) -> float:
+        return self._config.get("global_horizon_turnover_limit", 0.3)

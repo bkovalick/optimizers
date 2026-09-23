@@ -42,10 +42,25 @@ class GARCHSignals(Signals):
             vol_forecast = np.sqrt(variance_forecasts[t])
             sigma_levels.append(np.outer(vol_forecast, vol_forecast) * correlation_matrix)
 
-        ewma_returns = self.compute_ewma_returns()
-        mu_levels = [ewma_returns.iloc[-1].to_numpy(dtype=float).copy() for _ in range(horizon)]
-
+        # mu_levels = self.flat_forecast(horizon=horizon)
+        mu_levels = self.mean_reversion_forecast(horizon=horizon)
         return mu_levels, sigma_levels
+
+    def flat_forecast(self, horizon: int = 1) -> list:
+        """ Forecast future returns and volatility using a flat forecast (no change). """
+        ewma_returns = self.compute_ewma_returns()
+        return [ewma_returns.iloc[-1].to_numpy(dtype=float).copy() for _ in range(horizon)]
+
+    def mean_reversion_forecast(self, horizon: int = 1) -> list:
+        ewma_returns = self.compute_ewma_returns()
+        latest_mu = ewma_returns.iloc[-1].to_numpy(dtype=float)
+        long_run_mu = self.returns.mean().to_numpy(dtype=float)
+
+        decay = 0.8
+        return [
+            long_run_mu + (decay ** t) * (latest_mu - long_run_mu)
+            for t in range(1, horizon + 1)
+        ]        
 
 class SyntheticSignals(Signals):
     def __init__(self, data: pd.DataFrame, window: int = 20):
@@ -70,7 +85,6 @@ class SyntheticSignals(Signals):
             sigma_levels.append(sigma_t)
 
         return mu_levels, sigma_levels
-
 
 def simulate_gbm(S0, alpha, sigma, T, N):
     dt = T / N
