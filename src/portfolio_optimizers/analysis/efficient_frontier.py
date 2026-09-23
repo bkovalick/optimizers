@@ -63,14 +63,17 @@ class EfficientFrontierRunner:
         """
         Build the rebalance problem dictionary with market data and forecasted returns and volatilities.
         """
+        buy_costs = [0.002 + (0.0005 * t) for t in range(time_horizon)]
+        buy_costs[-1] = 0.0050  # Ensure the last period has a lower buy cost
+        sell_costs = [0.002 + (0.0005 * t) for t in range(time_horizon)]
         rebalance_problem = {
             "current_weights": None,
             "risk_aversion": 0,
             "market_data": market_data,
             "apply_shrinkage": True,
             "time_horizon": time_horizon,
-            "buy_costs": [0.002 + (0.005 * t) for t in range(time_horizon)],
-            "sell_costs": [0.002 + (0.005 * t) for t in range(time_horizon)],
+            "buy_costs": buy_costs,
+            "sell_costs": sell_costs,
             # "buy_costs": np.array([0.002] * time_horizon, dtype=float),
             # "sell_costs": np.array([0.001] * time_horizon, dtype=float),
             "hold_cost": 0.0005,

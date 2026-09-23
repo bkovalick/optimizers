@@ -165,10 +165,8 @@ class MultiPeriodOptimizer:
 
         for t in range(1, self.time_horizon + 1):
             self.model.addConstr(
-                0.5 * gp.quicksum(
-                    self.buy_trades[t, n] + self.sell_trades[t, n]
-                    for n in range(self.n_constituents)
-                ) <= self.period_turnover_limit,
+                0.5 * gp.quicksum(self.buy_trades[t, n] + self.sell_trades[t, n] 
+                for n in range(self.n_constituents)) <= self.period_turnover_limit,
                 name=f"period_turnover_cap_t_{t}"
             )
 
