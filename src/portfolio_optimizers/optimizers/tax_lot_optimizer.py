@@ -402,7 +402,7 @@ class OptimizationOrchestrator:
 
 if __name__ == '__main__':
     rebal_config = {
-        "daily_price_file": "optimizers/daily_prices.csv",
+        "daily_price_file": "data/daily_prices.csv",
         "tickers": ["AAPL", "MSFT", "XOM", "BAC", "UNH"],
         "native_tickers": ["AAPL", "MSFT", "XOM", "BAC", "UNH"],
         "portfolio_parameters": {

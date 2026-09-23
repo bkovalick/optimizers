@@ -1,4 +1,4 @@
-from utilities import utils
+from portfolio_optimizers.utilities import utils
 
 portCharsDataCnxn = utils.cnxnstring("PortfolioCharsDB-PRD", "PortfolioChars")
 ds2Cnxn = utils.cnxnstring("DFASys2DB-PRD", "DFASys2")

@@ -1,0 +1,89 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Run Optimizers",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/scripts/run_optimizers.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Highs Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/scripts/run_highs_optimizer.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Multi Period Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/portfolio_optimizers/optimizers/multi_period_optimizer.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Tax Lot Optimizer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/portfolio_optimizers/optimizers/tax_lot_optimizer.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Mean Variance Optimization",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/portfolio_optimizers/optimizers/mean_variance_optimization.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python: Market Signals",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/portfolio_optimizers/signals/market_signals.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        }
+    ]
+}

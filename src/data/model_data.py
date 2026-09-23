@@ -1,11 +1,14 @@
 import pandas as pd
 import numpy as np
 from abc import ABC, abstractmethod
+from pathlib import Path
 import scipy.linalg as la
 import yfinance as yf
 
 from .data_gateways import TblTradingStocksDataGateway, TblTradingStocksPricesDataGateway, VwwtblTradingStocksPricesHistoryDataGateway
 from utilities.connection_strings import portfolioBreaksCnxn, ds2Cnxn
+
+SRC_DIR = Path(__file__).resolve().parents[1]
 
 class Data(ABC):
     def __init__(self):
@@ -58,7 +61,7 @@ class GurobiModelData(Data):
 
     def _get_stock_data(self):
         if self.udf_prices is None:
-            return pd.read_pickle("data/subset_weekly_closings_10yrs.pkl")
+            return pd.read_pickle(SRC_DIR / "data" / "subset_weekly_closings_10yrs.pkl")
         else:
             if isinstance(self.udf_prices, str):
                 return pd.read_csv(self.udf_prices, index_col=0, parse_dates=True)

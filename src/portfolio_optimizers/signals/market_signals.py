@@ -1,7 +1,10 @@
 import pandas as pd
 import numpy as np
 import abc
+from pathlib import Path
 from arch import arch_model 
+
+SRC_DIR = Path(__file__).resolve().parents[1]
 
 class Signals(abc.ABC):
     def __init__(self, data: pd.DataFrame):
@@ -80,7 +83,7 @@ def simulate_gbm(S0, alpha, sigma, T, N):
 
 if __name__ == "__main__":
     # Example usage
-    market_data_df = pd.read_pickle("data/subset_weekly_closings_10yrs.pkl")
+    market_data_df = pd.read_pickle(SRC_DIR / "data" / "subset_weekly_closings_10yrs.pkl")
     garch_signals = GARCHSignals(market_data_df, window=20)
     garch_signals = garch_signals.forecast()
     print("GARCH Signals:\n", garch_signals)

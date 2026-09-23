@@ -7,16 +7,7 @@ import matplotlib.pyplot as plt
 import inspect
 import cvxpy as cp
 
-try:
-    from black_litterman.black_litterman_signal import BlackLittermanSignal
-except ModuleNotFoundError:
-    import os
-    import sys
-
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if repo_root not in sys.path:
-        sys.path.insert(0, repo_root)
-    from black_litterman.black_litterman_signal import BlackLittermanSignal
+from portfolio_optimizers.signals.black_litterman_signal import BlackLittermanSignal
 
 class DecisionVariables:
     def __init__(self, model: gp.Model, mu: pd.DataFrame):
