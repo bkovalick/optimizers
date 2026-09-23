@@ -6,7 +6,6 @@ from portfolio_optimizers.signals.market_signals import GARCHSignals, SyntheticS
 from portfolio_optimizers.analysis.efficient_frontier import EfficientFrontierRunner
 from portfolio_optimizers.reporting.plot_display import EfficientFrontierPlotter
 from portfolio_optimizers.reporting.report_writer import OptimizerReportWriter
-from portfolio_optimizers.optimizers.tax_lot_optimizer import TaxLotOptimizer, RebalanceProblemBuilder
 
 SRC_DIR = Path(__file__).resolve().parents[1]
 
@@ -50,6 +49,8 @@ def run_multi_period_optimization():
     plotter.plot_portfolio_composition(frontier_results)
 
 def run_tax_lot_optimization():
+    from portfolio_optimizers.optimizers.tax_lot_optimizer import TaxLotOptimizer, RebalanceProblemBuilder
+
     rebal_config = {
         "daily_price_file": SRC_DIR / "data" / "daily_prices.csv",
         "tickers": ["AAPL", "MSFT", "XOM", "BAC", "UNH"],
