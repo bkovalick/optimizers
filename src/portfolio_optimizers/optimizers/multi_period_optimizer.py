@@ -36,6 +36,7 @@ class MultiPeriodOptimizer:
         self.sigma_levels = portfolio_configuration.sigma_levels
 
         # Portfolio state and dimensions
+        self.terminal_weights = portfolio_configuration.terminal_weights
         self.current_weights = portfolio_configuration.current_weights
         self.time_horizon = portfolio_configuration.time_horizon
         self.n_constituents = portfolio_configuration.n_constituents
@@ -77,9 +78,9 @@ class MultiPeriodOptimizer:
             return f"STATUS_{self.model.status}"
         
     def _create_decision_variables(self): 
-        """Create decision variables"""
+        """Create decision variables for the optimization model."""
         self.trades = self.model.addVars(
-            range(1, self.time_horizon+1), 
+            range(1, self.time_horizon + 1), 
             range(self.n_constituents), 
             vtype=GRB.CONTINUOUS, 
             lb=-GRB.INFINITY, 
@@ -87,7 +88,7 @@ class MultiPeriodOptimizer:
         )
 
         self.buy_trades = self.model.addVars(
-            range(1, self.time_horizon+1), 
+            range(1, self.time_horizon + 1), 
             range(self.n_constituents), 
             vtype=GRB.CONTINUOUS, 
             lb=0.0, 
@@ -95,26 +96,26 @@ class MultiPeriodOptimizer:
         )
 
         self.sell_trades = self.model.addVars(
-            range(1, self.time_horizon+1), 
+            range(1, self.time_horizon + 1), 
             range(self.n_constituents), 
             vtype=GRB.CONTINUOUS, lb=0.0, 
             name="sell_trades"
         )
 
         self.is_buying = self.model.addVars(
-            range(1, self.time_horizon+1), 
+            range(1, self.time_horizon + 1), 
             range(self.n_constituents), 
             vtype=gp.GRB.BINARY, 
             name="is_buying")
         
         self.is_selling = self.model.addVars(
-            range(1, self.time_horizon+1), 
+            range(1, self.time_horizon + 1), 
             range(self.n_constituents), 
             vtype=gp.GRB.BINARY, 
             name="is_selling")
         
         self.optimal_weights = self.model.addMVar(
-            (self.time_horizon+1, self.n_constituents), 
+            (self.time_horizon + 1, self.n_constituents), 
             vtype=GRB.CONTINUOUS, 
             lb=0.0, 
             name="optimal_weights"
@@ -122,6 +123,12 @@ class MultiPeriodOptimizer:
 
     def _setup_constraints(self):
         """Set up the constraints for the optimization model"""
+        self._setup_portfolio_constraints()
+        self._setup_turnover_constraints()
+        self._setup_trade_indicator_constraints()
+                
+    def _setup_portfolio_constraints(self):
+        """Set up portfolio constraints for the optimization model"""
         for n in range(self.n_constituents):
             self.model.addConstr(
                 self.optimal_weights[0, n].item() == self.current_weights[n], 
@@ -132,8 +139,46 @@ class MultiPeriodOptimizer:
             self.model.addConstr(
                 gp.quicksum(self.optimal_weights[t, n].item() for n in range(self.n_constituents)) == 1.0,
                 name=f"net_exposure"
-            )           
-        
+            )      
+            
+        for t in range(1, self.time_horizon + 1):
+            for n in range(self.n_constituents):
+                self.model.addConstr(
+                    self.trades[t, n] == self.buy_trades[t, n] - self.sell_trades[t, n],
+                    name=f"total_trade_t_{t}_asset{n}"
+                )
+
+                self.model.addConstr(
+                    self.optimal_weights[t, n].item() == self.optimal_weights[t - 1, n].item() + self.trades[t, n],
+                    name=f"trade_def_t_{t}_asset{n}"
+                )
+
+        # for n in range(self.n_constituents):
+        #     self.model.addConstr(
+        #         self.optimal_weights[self.time_horizon, n].item() == self.terminal_weights[n], 
+        #         name=f"terminal_state_{n}"
+        #     )
+
+    def _setup_turnover_constraints(self):
+        """Set up turnover constraints for the optimization model"""
+        for t in range(1, self.time_horizon + 1):
+            self.model.addConstr(
+                0.5 * gp.quicksum(self.buy_trades[t, n] + self.sell_trades[t, n] 
+                for n in range(self.n_constituents)) <= self.period_turnover_limit,
+                name=f"period_turnover_cap_t_{t}"
+            )
+
+        self.model.addConstr(
+            0.5 * gp.quicksum(
+                self.buy_trades[t, n] + self.sell_trades[t, n]
+                for t in range(1, self.time_horizon + 1)
+                for n in range(self.n_constituents)
+            ) <= self.global_horizon_turnover_limit,
+            name="global_horizon_turnover_cap"
+        )
+
+    def _setup_trade_indicator_constraints(self):
+        """Set up trade indicator constraints for the optimization model"""
         for t in range(self.time_horizon):
             t_next = t + 1
 
@@ -152,36 +197,6 @@ class MultiPeriodOptimizer:
                     self.is_selling[t_next, n], 0, self.sell_trades[t_next, n], GRB.EQUAL, 0.0,
                     name=f"indicator_sell_t_{t}_asset{n}"
                 )
-                
-                self.model.addConstr(
-                    self.trades[t_next, n] == self.buy_trades[t_next, n] - self.sell_trades[t_next, n],
-                    name=f"total_trade_t_{t}_asset{n}"
-                )
-
-                self.model.addConstr(
-                    self.optimal_weights[t_next, n].item() == self.optimal_weights[t, n].item() + self.trades[t_next, n],
-                    name=f"trade_def_t_{t}_asset{n}"
-                )
-
-        for t in range(1, self.time_horizon + 1):
-            self.model.addConstr(
-                0.5 * gp.quicksum(self.buy_trades[t, n] + self.sell_trades[t, n] 
-                for n in range(self.n_constituents)) <= self.period_turnover_limit,
-                name=f"period_turnover_cap_t_{t}"
-            )
-
-        self.model.addConstr(
-            0.5 * gp.quicksum(
-                self.buy_trades[t, n] + self.sell_trades[t, n]
-                for t in range(1, self.time_horizon + 1)
-                for n in range(self.n_constituents)
-            ) <= self.global_horizon_turnover_limit,
-            name="global_horizon_turnover_cap"
-        )
-
-        # terminal_weights = [1.0 / self.n_constituents] * self.n_constituents # x_H target allocation
-        # for n in range(self.n_constituents):
-        #     self.model.addConstr(self.optimal_weights[self.time_horizon, n].item() == terminal_weights[n], name=f"terminal_state_{n}")
 
     def _set_objective(self) -> pd.DataFrame:
         """Set the optimizer objective"""

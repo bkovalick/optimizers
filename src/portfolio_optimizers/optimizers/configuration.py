@@ -98,3 +98,15 @@ class PortfolioConfiguration:
     @property
     def global_horizon_turnover_limit(self) -> float:
         return self._config.get("global_horizon_turnover_limit", 0.3)
+
+    @property
+    def terminal_weights(self) -> np.ndarray:
+        terminal_weights = self._config.get("terminal_weights", None)
+        if terminal_weights is None or len(terminal_weights) == 0:
+            self._terminal_weights = np.repeat(1.0 / self.n_constituents, self.n_constituents)
+        else:
+            if len(terminal_weights) != self.n_constituents:
+                raise ValueError("Terminal weights must match the number of market data columns")
+            self._terminal_weights = np.asarray(terminal_weights, dtype=float)    
+
+        return self._terminal_weights
