@@ -64,8 +64,7 @@ def run_multi_period_optimization():
     """ Run the multi-period optimization using the Efficient Frontier approach. """
     market_data_df = pd.read_pickle(SRC_DIR / "data" / "subset_weekly_closings_10yrs.pkl")
     risk_aversion_levels = np.linspace(0.25, 4, 5)
-    time_horizons = [2]
-    # , 2, 5, 10] 
+    time_horizons = [1, 2, 5, 10] 
     param_sweeps = {"risk_aversion": risk_aversion_levels, "time_horizon": time_horizons}
     parameter_sweep = RebalanceProblemSweep(build_rebalance_problem)
     rebalance_problems = parameter_sweep.build(param_sweeps, market_data_df, signal_type="garch")

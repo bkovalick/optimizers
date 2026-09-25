@@ -55,10 +55,13 @@ class MultiPeriodOptimizer:
         self.max_short = portfolio_configuration.max_short
         self.max_position = portfolio_configuration.max_position
 
+        # Initialize solution DataFrame
+        self.solution_df = pd.DataFrame()
+
     def build_model(self):
         """Build the optimization model"""
         self.model = gp.Model("MultiPeriodOptimizer", env=self.env)
-        self.model.Params.NonConvex = 2
+        # self.model.Params.NonConvex = 2
         self._create_decision_variables()
         self._setup_constraints()
         self._set_objective()
@@ -164,7 +167,7 @@ class MultiPeriodOptimizer:
                 name=f"initial_state{n}"
             )
 
-        for t in range(self.time_horizon + 1):
+        for t in range(1, self.time_horizon + 1):
             self.model.addConstr(
                 gp.quicksum(self.optimal_weights[t, n].item() for n in range(self.n_constituents)) == self.net_target,
                 name=f"net_exposure_t_{t}"
@@ -219,7 +222,7 @@ class MultiPeriodOptimizer:
                     self.optimal_long_weights[t, n].item() <= self.max_long,
                     name=f"max_long_t_{t}_asset{n}"
                 )
-                
+
                 self.model.addConstr(
                     self.optimal_short_weights[t, n].item() <= self.max_short,
                     name=f"max_short_t_{t}_asset{n}"
@@ -286,7 +289,11 @@ class MultiPeriodOptimizer:
                                   (self.phi_sell_costs[t] * self.sell_trades[t_next, n]) for n in range(self.n_constituents))
 
             # holding cost
-            holding_term = gp.quicksum(self.psi_hold_cost * self.optimal_weights[t_next, n] for n in range(self.n_constituents))
+            # holding_term = gp.quicksum(self.psi_hold_cost * self.optimal_weights[t_next, n] for n in range(self.n_constituents))
+            holding_term = gp.quicksum(
+                self.psi_hold_cost * self.optimal_short_weights[t_next, n].item()
+                for n in range(self.n_constituents)
+            )            
 
             # Combine terms into the objective function
             objective += return_term - (self.risk_aversion * risk_term) - tc_term - holding_term
@@ -297,59 +304,28 @@ class MultiPeriodOptimizer:
     def _solution_value(value) -> float:
         return float(np.asarray(value).item())
 
-    def _extract_solution(self): 
-        """Extract multi-period solutions over the time timeline."""
-
+    def _extract_solution(self):
         records = []
         for t in range(1, self.time_horizon + 1):
             t_forecast = t - 1
-
-            period_weights = np.array([
-                self._solution_value(self.optimal_weights[t, n].X)
-                for n in range(self.n_constituents)
-            ])
-            period_long_weights = np.array([
-                self._solution_value(self.optimal_long_weights[t, n].X)
-                for n in range(self.n_constituents)
-            ])
-            period_short_weights = np.array([
-                self._solution_value(self.optimal_short_weights[t, n].X)
-                for n in range(self.n_constituents)
-            ])
-            period_net_trades = np.array([
-                self._solution_value(self.trades[t, n].X)
-                for n in range(self.n_constituents)
-            ])
+            period_weights = np.array([self._solution_value(self.optimal_weights[t, n].X) for n in range(self.n_constituents)])
+            period_long = np.array([self._solution_value(self.optimal_long_weights[t, n].X) for n in range(self.n_constituents)])
+            period_short = np.array([self._solution_value(self.optimal_short_weights[t, n].X) for n in range(self.n_constituents)])
+            period_net_trades = np.array([self._solution_value(self.trades[t, n].X) for n in range(self.n_constituents)])
             period_turnover_pct = 0.5 * np.abs(period_net_trades).sum() * 100
             period_mu = np.array(self.mu_levels[t_forecast])
             period_return_t = self._solution_value(period_weights @ period_mu)
-
-            n_positions = np.sum(np.abs(period_weights) > 1e-5)
+            n_positions = len([w for w in period_weights if abs(w) > 1e-5])
             for n in range(self.n_constituents):
                 records.append({
-                    "Period": t,
-                    "Security": self.securities[n],
-                    "Weight": period_weights[n],
-                    "Long_Weight": period_long_weights[n],
-                    "Short_Weight": period_short_weights[n],
-                    "Buy_Trade": self._solution_value(self.buy_trades[t, n].X),
-                    "Sell_Trade": self._solution_value(self.sell_trades[t, n].X),
-                    "Net_Trade": period_net_trades[n],
-                    "Risk_Aversion": self.risk_aversion,
-                    "Period_Return": period_return_t,
-                    "Active_Positions": n_positions,
-                    "Turnover_Pct": period_turnover_pct
+                    "Period": t, "Security": self.securities[n], "Weight": period_weights[n],
+                    "Long_Weight": period_long[n], "Short_Weight": period_short[n],
+                    "Net_Trade": period_net_trades[n], "Period_Return": period_return_t,
+                    "Active_Positions": n_positions, "Turnover_Pct": period_turnover_pct,
+                    "Objective_Value": self.model.ObjVal, "Max_Time_Horizon": self.time_horizon,
+                    "Risk_Aversion": self.risk_aversion
                 })
-
         self.solution_df = pd.DataFrame(records)
-        self.solution_df["Max_Time_Horizon"] = self.time_horizon
-        self.solution_df["Objective_Value"] = self.model.ObjVal
 
-    def get_solution(self) -> dict:
-        if self.optimal_weights is None:
-            raise ValueError("No solution available. Call solve() first.")
-
-        return {
-            'solution': self.solution_df,
-            'objective_value': self.model.ObjVal
-        }
+    def get_solution(self) -> pd.DataFrame:
+        return self.solution_df

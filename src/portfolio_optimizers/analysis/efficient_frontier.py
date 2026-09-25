@@ -30,7 +30,6 @@ class EfficientFrontierRunner:
 
                     if status == "OPTIMAL":
                         solution = optimizer.get_solution()
-                        solution_df = solution['solution'].copy()
-                        result_container.append(solution_df)
+                        result_container.append(solution)
 
         return pd.concat(result_container)
