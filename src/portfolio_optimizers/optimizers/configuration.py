@@ -110,3 +110,23 @@ class PortfolioConfiguration:
             self._terminal_weights = np.asarray(terminal_weights, dtype=float)    
 
         return self._terminal_weights
+
+    @property
+    def net_target(self) -> float:
+        return self.max_long - self.max_short
+
+    @property
+    def gross_exposure(self) -> float:
+        return self.max_long + self.max_short
+
+    @property
+    def max_long(self) -> float:
+        return self._config.get("max_long", 1.0)
+
+    @property
+    def max_short(self) -> float:
+        return self._config.get("max_short", 0.0)
+
+    @property
+    def max_position(self) -> float:
+        return self._config.get("max_position", 0.10)

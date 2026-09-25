@@ -29,23 +29,30 @@ def build_rebalance_problem(market_data: pd.DataFrame,
     Build the rebalance problem dictionary with market data and forecasted returns and volatilities.
     """
     buy_costs = [0.002 + (0.0005 * t) for t in range(time_horizon)]
-    # buy_costs[-1] = 0.0050  # Ensure the last period has a lower buy cost
     sell_costs = [0.002 + (0.0005 * t) for t in range(time_horizon)]
+    investment_universe = market_data.columns.tolist()
+    investment_universe = ["AAPL", "MSFT", "XOM", "BAC", "UNH"]  # Example subset of tickers
+    # investment_market_data = market_data[investment_universe]
+    investment_market_data = market_data.copy()
     rebalance_problem = {
         "current_weights": None,
+        "investment_universe": investment_universe,
         "risk_aversion": 0,
-        "market_data": market_data,
+        "market_data": investment_market_data,
         "apply_shrinkage": True,
         "time_horizon": time_horizon,
         "buy_costs": buy_costs,
         "sell_costs": sell_costs,
         "hold_cost": 0.0005,
         "period_turnover_limit": 0.10,
-        "global_horizon_turnover_limit": 0.3
+        "global_horizon_turnover_limit": 0.3,
+        "max_long": 1.3,
+        "max_short": 0.30,
+        "max_position": 0.10
     }
 
-    signal = get_market_signal(market_data, signal_type=signal_type)
-    mu_levels, sigma_levels = signal.forecast(horizon=rebalance_problem["time_horizon"])
+    signal = get_market_signal(investment_market_data, signal_type=signal_type)
+    mu_levels, sigma_levels = signal.forecast(horizon=time_horizon)
 
     return {
         **rebalance_problem,
@@ -57,8 +64,8 @@ def run_multi_period_optimization():
     """ Run the multi-period optimization using the Efficient Frontier approach. """
     market_data_df = pd.read_pickle(SRC_DIR / "data" / "subset_weekly_closings_10yrs.pkl")
     risk_aversion_levels = np.linspace(0.25, 4, 5)
-    # time_horizons = [1, 2, 5, 10] 
-    time_horizons = [1]  # Reduced time horizons for quicker testing
+    time_horizons = [2]
+    # , 2, 5, 10] 
     param_sweeps = {"risk_aversion": risk_aversion_levels, "time_horizon": time_horizons}
     parameter_sweep = RebalanceProblemSweep(build_rebalance_problem)
     rebalance_problems = parameter_sweep.build(param_sweeps, market_data_df, signal_type="garch")

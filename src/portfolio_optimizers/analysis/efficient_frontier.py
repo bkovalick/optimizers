@@ -31,8 +31,6 @@ class EfficientFrontierRunner:
                     if status == "OPTIMAL":
                         solution = optimizer.get_solution()
                         solution_df = solution['solution'].copy()
-                        solution_df["Objective_Value"] = solution["objective_value"]
-                        solution_df["Max_Time_Horizon"] = config["time_horizon"]
                         result_container.append(solution_df)
 
         return pd.concat(result_container)

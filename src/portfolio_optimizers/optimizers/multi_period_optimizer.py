@@ -49,6 +49,11 @@ class MultiPeriodOptimizer:
         self.psi_hold_cost = portfolio_configuration.hold_cost
         self.period_turnover_limit = portfolio_configuration.period_turnover_limit
         self.global_horizon_turnover_limit = portfolio_configuration.global_horizon_turnover_limit
+        self.net_target = portfolio_configuration.net_target
+        self.gross_exposure = portfolio_configuration.gross_exposure
+        self.max_long = portfolio_configuration.max_long
+        self.max_short = portfolio_configuration.max_short
+        self.max_position = portfolio_configuration.max_position
 
     def build_model(self):
         """Build the optimization model"""
@@ -117,13 +122,37 @@ class MultiPeriodOptimizer:
         self.optimal_weights = self.model.addMVar(
             (self.time_horizon + 1, self.n_constituents), 
             vtype=GRB.CONTINUOUS, 
-            lb=0.0, 
+            lb=-self.max_position, 
+            ub=self.max_position,
             name="optimal_weights"
+        )
+
+        self.abs_optimal_weights = self.model.addMVar(
+            (self.time_horizon + 1, self.n_constituents), 
+            vtype=GRB.CONTINUOUS, 
+            lb=0.0, 
+            name="abs_optimal_weights"
+        )
+
+        self.optimal_long_weights = self.model.addMVar(
+            (self.time_horizon + 1, self.n_constituents), 
+            vtype=GRB.CONTINUOUS, 
+            lb=0.0, 
+            name="optimal_long_weights"
+        )  
+
+        self.optimal_short_weights = self.model.addMVar(
+            (self.time_horizon + 1, self.n_constituents), 
+            vtype=GRB.CONTINUOUS, 
+            lb=0.0, 
+            name="optimal_short_weights"
         )
 
     def _setup_constraints(self):
         """Set up the constraints for the optimization model"""
         self._setup_portfolio_constraints()
+        self._setup_gross_exposure_constraints()
+        self._setup_long_short_decomposition_constraints()
         self._setup_turnover_constraints()
         self._setup_trade_indicator_constraints()
                 
@@ -137,8 +166,8 @@ class MultiPeriodOptimizer:
 
         for t in range(self.time_horizon + 1):
             self.model.addConstr(
-                gp.quicksum(self.optimal_weights[t, n].item() for n in range(self.n_constituents)) == 1.0,
-                name=f"net_exposure"
+                gp.quicksum(self.optimal_weights[t, n].item() for n in range(self.n_constituents)) == self.net_target,
+                name=f"net_exposure_t_{t}"
             )      
             
         for t in range(1, self.time_horizon + 1):
@@ -159,6 +188,43 @@ class MultiPeriodOptimizer:
         #         name=f"terminal_state_{n}"
         #     )
 
+    def _setup_gross_exposure_constraints(self):
+        """Set up gross exposure constraints for the optimization model"""
+        for t in range(1, self.time_horizon + 1):
+            self.model.addConstr(
+                gp.quicksum(
+                    self.optimal_long_weights[t, n].item() + self.optimal_short_weights[t, n].item()
+                    for n in range(self.n_constituents)
+                ) <= self.gross_exposure,
+                name=f"gross_exposure_t_{t}"
+            )
+
+    def _setup_long_short_decomposition_constraints(self):
+        """Set up long-short decomposition constraints for the optimization model"""
+        for t in range(1, self.time_horizon + 1):
+            for n in range(self.n_constituents):
+                self.model.addConstr(
+                    self.optimal_long_weights[t, n].item() ==
+                    0.5 * (self.abs_optimal_weights[t, n].item() + self.optimal_weights[t, n].item()),
+                    name=f"long_def_t_{t}_asset{n}"
+                )
+
+                self.model.addConstr(
+                    self.optimal_short_weights[t, n].item() ==
+                    0.5 * (self.abs_optimal_weights[t, n].item() - self.optimal_weights[t, n].item()),
+                    name=f"short_def_t_{t}_asset{n}"
+                )
+
+                self.model.addConstr(
+                    self.optimal_long_weights[t, n].item() <= self.max_long,
+                    name=f"max_long_t_{t}_asset{n}"
+                )
+                
+                self.model.addConstr(
+                    self.optimal_short_weights[t, n].item() <= self.max_short,
+                    name=f"max_short_t_{t}_asset{n}"
+                )
+
     def _setup_turnover_constraints(self):
         """Set up turnover constraints for the optimization model"""
         for t in range(1, self.time_horizon + 1):
@@ -174,7 +240,7 @@ class MultiPeriodOptimizer:
                 for t in range(1, self.time_horizon + 1)
                 for n in range(self.n_constituents)
             ) <= self.global_horizon_turnover_limit,
-            name="global_horizon_turnover_cap"
+            name=f"global_horizon_turnover_cap_t_{self.time_horizon}"
         )
 
     def _setup_trade_indicator_constraints(self):
@@ -242,6 +308,14 @@ class MultiPeriodOptimizer:
                 self._solution_value(self.optimal_weights[t, n].X)
                 for n in range(self.n_constituents)
             ])
+            period_long_weights = np.array([
+                self._solution_value(self.optimal_long_weights[t, n].X)
+                for n in range(self.n_constituents)
+            ])
+            period_short_weights = np.array([
+                self._solution_value(self.optimal_short_weights[t, n].X)
+                for n in range(self.n_constituents)
+            ])
             period_net_trades = np.array([
                 self._solution_value(self.trades[t, n].X)
                 for n in range(self.n_constituents)
@@ -250,12 +324,14 @@ class MultiPeriodOptimizer:
             period_mu = np.array(self.mu_levels[t_forecast])
             period_return_t = self._solution_value(period_weights @ period_mu)
 
-            n_positions = len([w for w in period_weights if w > 1e-5])
+            n_positions = np.sum(np.abs(period_weights) > 1e-5)
             for n in range(self.n_constituents):
                 records.append({
                     "Period": t,
                     "Security": self.securities[n],
                     "Weight": period_weights[n],
+                    "Long_Weight": period_long_weights[n],
+                    "Short_Weight": period_short_weights[n],
                     "Buy_Trade": self._solution_value(self.buy_trades[t, n].X),
                     "Sell_Trade": self._solution_value(self.sell_trades[t, n].X),
                     "Net_Trade": period_net_trades[n],
@@ -266,6 +342,8 @@ class MultiPeriodOptimizer:
                 })
 
         self.solution_df = pd.DataFrame(records)
+        self.solution_df["Max_Time_Horizon"] = self.time_horizon
+        self.solution_df["Objective_Value"] = self.model.ObjVal
 
     def get_solution(self) -> dict:
         if self.optimal_weights is None:

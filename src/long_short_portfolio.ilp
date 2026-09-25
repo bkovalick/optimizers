@@ -1,0 +1,10 @@
+\ Model MultiPeriodOptimizer_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+\ Signature: 0x5af67735cdbe2a3c
+Maximize
+ 
+Subject To
+ initial_state0: optimal_weights[0,0] = 0.2
+Bounds
+ -infinity <= optimal_weights[0,0] <= 0.1
+End
